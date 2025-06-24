@@ -6,6 +6,7 @@ import asyncio
 from flask import Flask, request, jsonify
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+from flask_cors import CORS
 
 # ================= CONFIG =================
 TOKEN = os.getenv("BOT_TOKEN", "7861578831:AAGz893TBI6dVi09qAgx6hn3ZjZJ0WOzS3c")  # DON'T hard-code in prod
@@ -31,6 +32,10 @@ def save_progress(uid: int, data: dict):
 
 # =============== FLASK ===============
 app = Flask(__name__)
+CORS(app,
+     origins=["https://aquamarine-semifreddo-d23b16.netlify.app"],
+     methods=["GET", "POST", "OPTIONS"],
+     allow_headers="*")
 
 @app.get("/api/progress/<int:uid>")
 def api_get(uid):
