@@ -9,7 +9,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, ContextTyp
 
 # ================= CONFIG =================
 TOKEN = os.getenv("BOT_TOKEN", "7861578831:AAGz893TBI6dVi09qAgx6hn3ZjZJ0WOzS3c")  # DON'T hard-code in prod
-WEBAPP_URL = os.getenv("WEBAPP_URL", "https://your-domain.com")  # URL где размещён index.html (https!)
+WEBAPP_URL = os.getenv("WEBAPP_URL", "https://aquamarine-semifreddo-d23b16.netlify.app/index.html")  # URL где размещён index.html (https!)
 DB_PATH = os.getenv("DB_PATH", "progress.db")
 
 # =============== DATABASE ===============
@@ -45,6 +45,12 @@ def api_post(uid):
 def root():
     return "Frutopia backend running"
 
+@app.after_request
+def add_cors(r):
+    r.headers["Access-Control-Allow-Origin"] = "https://aquamarine-semifreddo-d23b16.netlify.app"
+    r.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return r
+
 # =============== TELEGRAM BOT ===============
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     kb = [[InlineKeyboardButton(text="Play", web_app=WebAppInfo(url=WEBAPP_URL))]]
@@ -56,15 +62,22 @@ async def web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_progress(user_id, data)
     await update.message.reply_text("✔️ Progress saved!")
 
+def run_api():
+    # Flask API server
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8080)))
 
-def run_bot():
-    asyncio.set_event_loop(asyncio.new_event_loop())
+def main():
+    # запускаем Flask в отдельном потоке
+    threading.Thread(target=run_api, daemon=True).start()
+
+    # запускаем Telegram-бот в главном потоке (чтобы работали сигнал-хендлеры)
     application = Application.builder().token(TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, web_app_data))
-    application.run_polling()
+
+    # stop_signals по умолчанию (SIGINT/SIGTERM) работают только в main thread ‑ нам и нужно
+    application.run_polling(drop_pending_updates=True)
 
 # =============== ENTRY ===============
 if __name__ == "__main__":
-    threading.Thread(target=run_bot, daemon=True).start()
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 3000))) 
+    main() 
